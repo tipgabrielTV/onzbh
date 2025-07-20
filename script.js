@@ -50,4 +50,79 @@ document.addEventListener('DOMContentLoaded', () => {
                 <p><strong>Longitude:</strong> ${line.LG || 'N/A'}</p>
                 <p><strong>Última Posição:</strong> ${line.HR ? new Date(line.HR.substring(0, 4), line.HR.substring(4, 6) - 1, line.HR.substring(6, 8), line.HR.substring(8, 10), line.HR.substring(10, 12), line.HR.substring(12, 14)).toLocaleString('pt-BR') : 'N/A'}</p>
                 <p class="type">Tipo: ${line.type === 'metropolitan' ? 'Metropolitana' : 'Convencional'}</p>
-                ${
+                ${line.status ? `<p><strong>Status:</strong> <span class="bus-status status-${line.status.toLowerCase()}">${line.status}</span></p>` : ''}
+                ${line.last_update ? `<p class="last-update">Última atualização: ${new Date(line.last_update).toLocaleString('pt-BR')}</p>` : ''}
+            `;
+            busLinesContainer.appendChild(busCard);
+        });
+    }
+
+    // Função para filtrar e buscar as linhas
+    function filterAndSearchBusLines() {
+        let filteredLines = allBusLines;
+
+        // Aplica o filtro de tipo (agora o 'type' é atribuído no loadBusLines)
+        if (currentFilter !== 'all') {
+            filteredLines = filteredLines.filter(line => line.type === currentFilter);
+        }
+
+        // Aplica a busca por texto
+        const searchTerm = searchInput.value.toLowerCase().trim();
+        if (searchTerm) {
+            filteredLines = filteredLines.filter(line =>
+                // Agora pesquisamos SOMENTE pelo número da linha (NL)
+                // Convertemos para String antes de usar toLowerCase() e includes()
+                String(line.NL).toLowerCase().includes(searchTerm)
+            );
+        }
+
+        renderBusLines(filteredLines);
+    }
+
+    // Event Listeners para os botões de filtro
+    filterButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            filterButtons.forEach(btn => btn.classList.remove('active'));
+            button.classList.add('active');
+            currentFilter = button.dataset.filter;
+            filterAndSearchBusLines();
+        });
+    });
+
+    // Event Listener para o botão de busca
+    searchButton.addEventListener('click', filterAndSearchBusLines);
+
+    // Event Listener para a busca ao digitar
+    searchInput.addEventListener('keyup', (event) => {
+        if (event.key === 'Enter') {
+            filterAndSearchBusLines();
+        } else if (searchInput.value.length === 0) {
+            // Quando a busca é limpa, filtra e renderiza com o filtro atual
+            filterAndSearchBusLines();
+        } else {
+            // Pesquisa em tempo real se a string tiver 2 ou mais caracteres,
+            // ou se estiver apagando caracteres.
+            if (searchInput.value.length >= 2 || event.key === 'Backspace' || event.key === 'Delete') {
+                filterAndSearchBusLines();
+            }
+        }
+    });
+
+    // Event Listener para os links de navegação (para filtrar)
+    navLinks.forEach(link => {
+        if (link.dataset.busType) {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const type = link.dataset.busType;
+                filterButtons.forEach(btn => {
+                    if (btn.dataset.filter === type) {
+                        btn.click(); // Simula o clique no botão de filtro correspondente
+                    }
+                });
+            });
+        }
+    });
+
+    // Inicia o carregamento dos dados quando a página é carregada
+    loadBusLines();
+});
