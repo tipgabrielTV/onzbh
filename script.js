@@ -6,24 +6,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const navLinks = document.querySelectorAll('header nav ul li a');
 
     let allBusLines = []; // Esta variável agora será preenchida pelos dados carregados
-    let currentFilter = 'all'; // Manteremos 'all' como padrão, mas os filtros de tipo podem não ter efeito total sem o campo 'type' no JSON
+    let currentFilter = 'all';
 
     // Função para carregar os dados das linhas de ônibus
     async function loadBusLines() {
         try {
-            // Carrega linhas convencionais
-            // Certifique-se de que o arquivo JSON está na pasta 'data' na raiz do seu projeto
-            const conventionalResponse = await fetch('./data/tempo_real_convencional_json_200725121153.json');
-            if (!conventionalResponse.ok) {
-                throw new Error(`HTTP error! status: ${conventionalResponse.status}`);
+            // Caminho para o seu novo arquivo JSON (assumindo que está na mesma pasta do script.js e index.html)
+            const response = await fetch('linhas.json'); 
+            // Se você colocou o 'linhas.json' em uma pasta 'data', use: await fetch('./data/linhas.json');
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
-            const conventionalLines = await conventionalResponse.json();
-
-            // O JSON fornecido parece ser apenas para linhas 'convencionais' e não tem um campo 'type'.
-            // Para fins de demonstração, vamos atribuir 'conventional' a todas elas.
-            // Se você tiver um JSON de metropolitanas, precisará carregar e combinar.
-            allBusLines = conventionalLines.map(line => ({ ...line, type: 'conventional' }));
-
+            // O JSON já tem os campos 'numero', 'nome' e 'tipo', então não precisamos mais do .map para adicionar 'type'
+            allBusLines = await response.json();
 
             console.log('Dados carregados:', allBusLines); // Para depuração
             filterAndSearchBusLines(); // Renderiza as linhas após o carregamento
@@ -44,15 +40,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const busCard = document.createElement('div');
             busCard.classList.add('bus-card');
             busCard.innerHTML = `
-                <h4>Linha: ${line.NL}</h4> {/* Usando NL para o número da linha */}
-                <p><strong>Número do Veículo:</strong> ${line.NV || 'N/A'}</p> {/* Exemplo de outro campo disponível */}
-                <p><strong>Latitude:</strong> ${line.LT || 'N/A'}</p>
-                <p><strong>Longitude:</strong> ${line.LG || 'N/A'}</p>
-                <p><strong>Última Posição:</strong> ${line.HR ? new Date(line.HR.substring(0, 4), line.HR.substring(4, 6) - 1, line.HR.substring(6, 8), line.HR.substring(8, 10), line.HR.substring(10, 12), line.HR.substring(12, 14)).toLocaleString('pt-BR') : 'N/A'}</p>
-                <p class="type">Tipo: ${line.type === 'metropolitan' ? 'Metropolitana' : 'Convencional'}</p>
-                ${line.status ? `<p><strong>Status:</strong> <span class="bus-status status-${line.status.toLowerCase()}">${line.status}</span></p>` : ''}
-                ${line.last_update ? `<p class="last-update">Última atualização: ${new Date(line.last_update).toLocaleString('pt-BR')}</p>` : ''}
-            `;
+                <h4>Linha: ${line.numero}</h4> {/* Usando 'numero' para o número da linha */}
+                <p><strong>Nome:</strong> ${line.nome || 'N/A'}</p> {/* Usando 'nome' para o nome da linha */}
+                <p class="type">Tipo: ${line.tipo || 'N/A'}</p> {/* Usando 'tipo' para o tipo de linha */}
+                `;
             busLinesContainer.appendChild(busCard);
         });
     }
@@ -61,18 +52,18 @@ document.addEventListener('DOMContentLoaded', () => {
     function filterAndSearchBusLines() {
         let filteredLines = allBusLines;
 
-        // Aplica o filtro de tipo (agora o 'type' é atribuído no loadBusLines)
+        // Aplica o filtro de tipo (agora usamos line.tipo e convertemos para minúsculas)
         if (currentFilter !== 'all') {
-            filteredLines = filteredLines.filter(line => line.type === currentFilter);
+            filteredLines = filteredLines.filter(line => line.tipo.toLowerCase() === currentFilter);
         }
 
         // Aplica a busca por texto
         const searchTerm = searchInput.value.toLowerCase().trim();
         if (searchTerm) {
             filteredLines = filteredLines.filter(line =>
-                // Agora pesquisamos SOMENTE pelo número da linha (NL)
-                // Convertemos para String antes de usar toLowerCase() e includes()
-                String(line.NL).toLowerCase().includes(searchTerm)
+                // Pesquisamos AGORA pelo número (numero) OU pelo nome da linha (nome)
+                String(line.numero).toLowerCase().includes(searchTerm) ||
+                String(line.nome).toLowerCase().includes(searchTerm)
             );
         }
 
@@ -84,7 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
         button.addEventListener('click', () => {
             filterButtons.forEach(btn => btn.classList.remove('active'));
             button.classList.add('active');
-            currentFilter = button.dataset.filter;
+            currentFilter = button.dataset.filter; // 'conventional' ou 'metropolitan'
             filterAndSearchBusLines();
         });
     });
@@ -113,7 +104,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (link.dataset.busType) {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
-                const type = link.dataset.busType;
+                const type = link.dataset.busType; // 'conventional' ou 'metropolitan'
                 filterButtons.forEach(btn => {
                     if (btn.dataset.filter === type) {
                         btn.click(); // Simula o clique no botão de filtro correspondente
